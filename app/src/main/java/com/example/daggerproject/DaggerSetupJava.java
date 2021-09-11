@@ -4,6 +4,7 @@ import static java.util.Collections.emptyList;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
@@ -35,12 +36,21 @@ public class DaggerSetupJava {
 
 final class CommandRouter {
 
-    /**CommandRouterを作成するために、当該クラスのコンストラクターにAnnotationをつける。*/
+    //private final Map<String, Command> commands = Collections.emptyMap();
+    private final Map<String, Command> commands = new HashMap<>();
+
+    /**CommandRouterを作成するために、当該クラスのコンストラクターにAnnotationをつける。
+     *
+     * 引数としてインスタンスを注入する場合、@Injectを２箇所に設置する。
+     * 1つは、注入先のコンストクター(コンストラクターの引数に対象クラスを記載されているはず。)
+     * 2つは、注入物として選択されたクラスのコンストラクター
+     * この2つのインジェクトアノテーションにより、Daggerはどこに何を注入するのかを特定する。
+     */
+
     @Inject
-    CommandRouter() { }
-
-
-    private final Map<String, Command> commands = Collections.emptyMap();
+    CommandRouter(HelloWorldCommand helloWorldCommand) {//注入先のコンストラクター
+        commands.put(helloWorldCommand.key(), helloWorldCommand);
+    }
 
     Status route(String input) {
         List<String> splitInput = split(input);
@@ -72,28 +82,46 @@ final class CommandRouter {
     private static List<String> split(String string) {  ...  }
 }
 
-interface Command {
 
-    String key();
-    Status handleInput(List<String> input);
+final class HelloWorldCommand implements Command {//Commandインターフェースを実装
 
-    enum Status {
-        INVALID,
-        HANDLED
+    @Inject //注入物のコンストラクター
+    HelloWorldCommand() {}
+
+    @Override
+    public String key() {
+        return "hello";
     }
+
+    @Override
+    public Status handleInput(List<String> input) {
+        if (!input.isEmpty()) {
+            return Status.INVALID;
+        }
+        System.out.println("world!");
+        return Status.HANDLED;
+    }
+
 }
 
 
 /**
  * CONCEPTS
  *
-     * @Component
- *      Daggerにインターフェースあるいは、抽象クラスを実装し、アプリケーションオブジェクトを作成するように指示するアノテーション
-     *  tells Dagger to implement an interface or abstract class that creates and returns one or more application objects.
-     *  Dagger will generate a class that implements the component type. The generated type will be named DaggerYourType (or DaggerYourType_NestedType for nested types)
+ * @Component
+ *  Daggerにインターフェースあるいは、抽象クラスを実装し、アプリケーションオブジェクト(DaggerXXX)を作成するように指示するアノテーション
+ *  tells Dagger to implement an interface or abstract class that creates and returns one or more application objects.
+ *  Dagger will generate a class that implements the component type. The generated type will be named DaggerYourType (or DaggerYourType_NestedType for nested types)
+ *
+ * @Inject
+ *  コンストラクタークラスでDaggerにクラスの初期化方法を教えるアノテーション。
+ *  on a constructor tells Dagger how to instantiate that class. We’ll see more shortly.
+ *
+ *
+     * インジェクトコンストラクターでコンストラクターの中に入れる値は依存関係にあるクラスである。
+     * Daggerはクラスを初期化するための依存関係を提供する。
      *
-     * @Inject
- *      コンストラクタークラスでDaggerにクラスの初期化方法を教えるアノテーション。
-     *  on a constructor tells Dagger how to instantiate that class. We’ll see more shortly.
+     * コマンドルーターがハローワールドコマンドをInjectするという言い方もできるが、この言い回しは混乱の元になるため、
+     * Daggerのチュートリアルでは、DaggerがCommandRouterを初期化するため、@Injectコンストラクターを用いて、CommandRouterそれ自体にInjectするという明示的な言い方で統一する。
  *
  * */

@@ -2,6 +2,7 @@ package com.example.daggerproject;
 
 import static java.util.Collections.emptyList;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -14,6 +15,7 @@ import javax.inject.Inject;
 import dagger.Binds;
 import dagger.Component;
 import dagger.Module;
+import dagger.Provides;
 
 //【疑問】DaggerのJavaとKotlinでは使い方が違う？
 
@@ -41,8 +43,9 @@ final class CommandRouter {
     //private final Map<String, Command> commands = Collections.emptyMap();
     private final Map<String, Command> commands = new HashMap<>();
 
-    /**CommandRouterを作成するために、当該クラスのコンストラクターにAnnotationをつける。
-     *
+    /**
+     * CommandRouterを作成するために、当該クラスのコンストラクターにAnnotationをつける。
+     * <p>
      * 引数としてインスタンスを注入する場合、@Injectを２箇所に設置する。
      * 1つは、注入先のコンストクター(コンストラクターの引数に対象クラスを記載されているはず。)
      * 2つは、注入物として選択されたクラスのコンストラクター
@@ -51,7 +54,7 @@ final class CommandRouter {
 
     @Inject
     CommandRouter(Command command) {//注入先のコンストラクター
-        commands.put(helloWorldCommand.key(), helloWorldCommand);
+        commands.put(command.key(), command);
     }
 
     Status route(String input) {
@@ -81,14 +84,20 @@ final class CommandRouter {
     }
 
     // Split on whitespace
-    private static List<String> split(String string) {  ...  }
+    private static List<String> split(String string) {
+        return new ArrayList<String>(Arrays.asList(string));
+    }
 }
 
 
 final class HelloWorldCommand implements Command {//Commandインターフェースを実装
 
+    private final Outputter outputter;
+
     @Inject //注入物のコンストラクター
-    HelloWorldCommand() {}
+    HelloWorldCommand(Outputter outputter) {
+        this.outputter = outputter;
+    }
 
     @Override
     public String key() {
@@ -97,10 +106,7 @@ final class HelloWorldCommand implements Command {//Commandインターフェー
 
     @Override
     public Status handleInput(List<String> input) {
-        if (!input.isEmpty()) {
-            return Status.INVALID;
-        }
-        System.out.println("world!");
+        outputter.output("world!");
         return Status.HANDLED;
     }
 
@@ -110,6 +116,14 @@ final class HelloWorldCommand implements Command {//Commandインターフェー
 abstract class HelloWorldModule {
     @Binds
     abstract Command helloWorldCommand(HelloWorldCommand command);
+}
+
+@Module
+abstract class SystemOutModule {
+    @Provides
+    static Outputter textOutputter() {
+        return System.out::println;
+    }
 }
 
 

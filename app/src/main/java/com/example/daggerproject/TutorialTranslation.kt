@@ -165,16 +165,80 @@ Depending on Interfaces
 
 
 
+Abstraction for Output
+
+    現在、HelloWorldCommandは出力のためSystem.out.println()メソッドを使っていますね？
+    依存関係注入の精神に乗っ取り、System.outを直接使うのではなく、抽象化してみましょう。
+    HelloWorldCommand実装クラスを変更せず、Textの操作ができる柔軟性を持つことを目標にして進めましょう！
+    まず私たちがすることは、Textを操作するOutputter型を作ることです。
+
+        interface Outputter {
+            void output(String output);
+        }
+
+    そして、HelloWorldCommand内で下記のように使用します。
+
+        private final Outputter outputter;
+
+        @Inject
+        HelloWorldCommand(Outputter outputter) {
+            this.outputter = outputter;
+        }
+
+        @Override
+        public Status handleInput(List<String> input) {
+            outputter.output("world!");
+            return Status.HANDLED;
+        }
+
+    Outputterはインターフェースです。前述の通り、以下の手順を踏めばこのインターフェースの実装クラスをDaggerに組み込めるでしょう。
+        1.実装クラスのコンストラクターに@Injectアノテーションをつける。
+        2.@Bindアノテーションを使い、Outputterインターフェースと実装クラスを繋げる。
+
+    しかし、Outputterはとてもシンプルなので、ラムダ式やメソッド参照でも実装できるでしょう。
+    なので、上の手順を踏まずに、Outputterインスタンス自身を生成・返却する静的メソッドを記述してみましょう！
+
+        @Module
+        abstract class SystemOutModule {
+          @Provides
+          static Outputter textOutputter() {
+            return System.out::println;
+          }
+        }
+
+    ここでもう一つの@Moduleを作りましたが、@Bindアノテーションの代わりに@Providesメソッドを用いています。
+    @Providesメソッドとは、@Injectコンストラクターのように動きます。Outputterインスタンスが必要になった時に、
+    DaggerにSystemOutModule.textOutputter()を呼ぶように伝えるのです。
+
+    再度繰り返しますが、コンポーネントに、新しいモジュールを追加する必要があります。
+    これによって、DaggerはこのModuleを私たちのApplicationに組み込むのです。
+
+        class CommandLineAtm {
+          ...
+          @Component(modules = {HelloWorldModule.class, SystemOutModule.class})
+          interface CommandRouterFactory {
+            CommandRouter router();
+          }
+        }
+
+    アプリケーションの振る舞いが変化したわけではありませんが、これによってより簡単にコードが書けるようになりましたね。
+
+
+
     @Component　インターフェースを自動実装！
     DaggerXxx　実装されたクラス！生成された実装クラスはApplicationオブジェクト！どっからでも呼び出せる！
     静的createメソッド　実装されたクラスをインスタンス化してくれる便利なやつ！
     @Inject　Daggerにインスタンスの作り方を教えている！
-    @Bind　インターフェースを依存関係に使用した時、どの実装クラスを使うかをDaggerに教えてあげるアノテーション！
+    @Binds　インターフェースを依存関係に使用した時、どの実装クラスを使うかをDaggerに教えてあげるアノテーション！
     @Module　Bindingメソッドを格納したクラスを示す！コンポーネントにこのモジュールの場所を伝えることで、DaggerXxxの自動生成に組み込んでもらう！
              名前の通りモジュールとしての振る舞いを持ち、アプリケーションやコンテクストの中で組み合わせて使用できる。
+ 　　@Provides　正直ちょっとまだわからないので、保留。
 
     直接的にInjectする場合は、@Injectアノテーション
     間接的(インターフェースを使って)にInjectする場合は、@Module & &Bindアノテーションを使う！
+
+    ModuleとBindを使った場合でも注入元の実装クラスには、注入元をマークするinjectアノテーションを入れなければいけない。
+    @Providesは実装クラスではなく、実装メソッドだけを渡す！
 
 
 */
